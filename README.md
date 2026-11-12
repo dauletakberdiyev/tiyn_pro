@@ -39,7 +39,7 @@ npm run dev
 
 ## Публикация frontend
 
-Production размещён на [tiyn-six.vercel.app](https://tiyn-six.vercel.app). Исходники: [dauletakberdiyev/tiyn_pro](https://github.com/dauletakberdiyev/tiyn_pro). После подключения GitHub к существующему проекту Vercel push в `main` запускает установку зависимостей, тесты и production-сборку. SQL-миграции и серверные функции Supabase этим процессом не применяются.
+Production размещён на [tiyn-six.vercel.app](https://tiyn-six.vercel.app). Исходники: [dauletakberdiyev/tiyn_pro](https://github.com/dauletakberdiyev/tiyn_pro). Репозиторий подключён к существующему проекту Vercel: push в `main` запускает установку зависимостей, тесты и production-сборку на Node.js 24. SQL-миграции и серверные функции Supabase этим процессом не применяются.
 
 Параметры Vercel и публичные переменные окружения описаны в [DEPLOYMENT.md](DEPLOYMENT.md).
 

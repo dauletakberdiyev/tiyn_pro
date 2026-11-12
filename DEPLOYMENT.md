@@ -22,7 +22,7 @@
 - Output directory: `dist`.
 - Root directory: корень репозитория.
 
-В настройках существующего проекта Vercel `tiyn` подключите `dauletakberdiyev/tiyn_pro` и укажите production-ветку `main`. У проекта должны оставаться Node.js 24 и прежний домен `tiyn-six.vercel.app`.
+Существующий проект Vercel `tiyn` подключён к `dauletakberdiyev/tiyn_pro`. Production публикуется из `main`; настроены Node.js 24, Vite, `npm ci`, проверки и сборка `dist`. Основной домен остаётся `tiyn-six.vercel.app`.
 
 В окружении **Production** Vercel должны быть три публичные переменные из локального `.env.local`:
 
