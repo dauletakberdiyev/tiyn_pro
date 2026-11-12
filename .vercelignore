@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.local/
+.git/
+.agents/
+.codex/
+node_modules/
+coverage/
+supabase/.temp/
+supabase/functions/.env*
+!supabase/functions/.env.example
