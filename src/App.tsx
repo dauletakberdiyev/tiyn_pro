@@ -17,7 +17,7 @@ const titles: Record<Modal['type'], string> = {
   goals: 'Цели накоплений', goal: 'Цель накоплений',
   settings: 'Настройки', budget: 'Настроить бюджет', category: 'Категория', categories: 'Категории',
   schedule: 'Запланированное событие', complete: 'Подтвердить событие', debts: 'Долги', debt: 'Карточка долга', repay: 'Возврат долга',
-  allowance: 'Ваш ориентир на день', onboard: 'Начнём с вашего счёта', reset: 'Удалить данные', demoReset: 'Загрузить пример', bot: 'Быстрый ввод', export: 'Экспорт операций',
+  allowance: 'Ваш бюджет на сегодня', onboard: 'Начнём с вашего счёта', reset: 'Удалить данные', demoReset: 'Загрузить пример', bot: 'Быстрый ввод', export: 'Экспорт операций',
 };
 function currentPage(): Page { return navigation.find(n => `#${n.page}` === window.location.hash)?.page ?? 'home'; }
 export function App() {
@@ -51,7 +51,20 @@ export function App() {
       const url = new URL(window.location.href); url.searchParams.delete('edit'); window.history.replaceState(null, '', url);
     }
   }, [book]);
-  useEffect(() => { const timer = setInterval(() => setClock(new Date()), 60000); return () => clearInterval(timer); }, []);
+  useEffect(() => {
+    const update = () => setClock(new Date());
+    const visible = () => { if (document.visibilityState === 'visible') update(); };
+    const timer = setInterval(update, 60000);
+    window.addEventListener('focus', update);
+    document.addEventListener('visibilitychange', visible);
+    telegram()?.onEvent('activated', update);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', update);
+      document.removeEventListener('visibilitychange', visible);
+      telegram()?.offEvent('activated', update);
+    };
+  }, []);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 12000); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
     const mode = book?.settings.theme ?? 'dark'; const query = window.matchMedia('(prefers-color-scheme: dark)');

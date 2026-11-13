@@ -138,8 +138,40 @@ export function RepayForm({ debtId }: { debtId: string }) {
 }
 
 export function AllowanceForm() {
-  const { book, date, run, busy, close } = useApp(); const a = allowance(book, date);
-  return <><div className={`detail-amount ${a.free < 0 ? 'negative' : ''}`}><small>{a.free < 0 ? 'Дефицит за период' : 'Можно потратить в день'}</small><Money book={book} value={a.free < 0 ? -a.free : a.daily} /></div><div className="calculation"><div><span>На участвующих счетах</span><Money book={book} value={a.balance} /></div><div><span>Предстоящие платежи</span><Money book={book} value={-a.reserved} /></div><div><span>Резерв на этих счетах</span><Money book={book} value={-a.reserve} /></div><div className="calculation-total"><strong>Свободно до {formatDate(a.horizon)}</strong><Money book={book} value={a.free} /></div><div><span>Дней расходов</span><strong>{a.days}</strong></div></div><Form busy={busy} onSubmit={async data => { await run({ type: 'settings.update', settings: { horizon: value(data, 'horizon') as 'income' | 'month', reserve: parseMoney(value(data, 'reserve') || '0') } }, 'Расчёт обновлён'); close(); }}><Field label="Период расчёта"><select name="horizon" defaultValue={book.settings.horizon}><option value="income">До следующего дохода</option><option value="month">До конца месяца</option></select></Field><Field label="Резерв, ₸" hint="Только деньги на участвующих счетах. Накопительные счета, исключённые из расчёта, уже не учитываются."><input name="reserve" inputMode="decimal" defaultValue={moneyInput(book.settings.reserve)} /></Field>{book.settings.horizon === 'income' && !a.nextIncome && <p className="hint-box"><Icon name="info" />Будущий доход не задан. Пока используем конец месяца.</p>}<p className="small muted">Неполученные доходы не прибавляются к остатку. Лимиты бюджета и категорий действуют отдельно.</p></Form></>;
+  const { book, date, run, busy, close, navigate } = useApp(); const a = allowance(book, date);
+  return <>
+    <div className="detail-amount"><small>Осталось на сегодня</small><Money book={book} value={a.remainingToday} /></div>
+    <div className="calculation">
+      <div><span>План на день</span><Money book={book} value={a.dailyPlan} /></div>
+      <div><span>Повседневные траты сегодня</span><Money book={book} value={-a.todayExpenses} /></div>
+      {a.todayRefunds > 0 && <div><span>Возвраты сегодня</span><Money book={book} value={a.todayRefunds} /></div>}
+      <div className="calculation-total"><strong>Осталось на сегодня</strong><Money book={book} value={a.remainingToday} /></div>
+    </div>
+    {a.overspentToday > 0 && <p className="allowance-notice"><Icon name="warning" /><span>Превышение за день: <Money book={book} value={a.overspentToday} />. Завтрашний план учтёт оставшиеся деньги.</span></p>}
+    {a.deficit > 0 && <p className="allowance-notice"><Icon name="warning" /><span>Дефицит за период: <Money book={book} value={a.deficit} />. Денег на участвующих счетах не хватает на платежи и резерв.</span></p>}
+    {a.free >= 0 && a.dailyPlan - a.todaySpent > a.remainingToday && <p className="hint-box allowance-explanation"><Icon name="info" />Остаток на сегодня ограничен свободными деньгами на счетах.</p>}
+    <h3 className="allowance-section-title">Как получен план на день</h3>
+    <div className="calculation">
+      <div><span>На участвующих счетах</span><Money book={book} value={a.balance} /></div>
+      <div><span>Предстоящие платежи</span><Money book={book} value={-a.reserved} /></div>
+      <div><span>Резерв на этих счетах</span><Money book={book} value={-a.reserve} /></div>
+      <div className="calculation-total"><strong>Свободно до {formatDate(a.horizon)}</strong><Money book={book} value={a.free} /></div>
+      {a.todayExpenses > 0 && <div><span>Добавляем сегодняшние траты</span><Money book={book} value={a.todayExpenses} /></div>}
+      {a.todayRefunds > 0 && <div><span>Вычитаем сегодняшние возвраты</span><Money book={book} value={-a.todayRefunds} /></div>}
+      <div><span>До повседневных трат сегодня</span><Money book={book} value={a.free + a.todaySpent} /></div>
+      <div><span>Дней расходов, включая сегодня</span><strong>{a.days}</strong></div>
+      <div className="calculation-total"><strong>План на день</strong><Money book={book} value={a.dailyPlan} /></div>
+      {a.todayBills > 0 && <div><span>Оплаченные отдельно платежи сегодня</span><Money book={book} value={a.todayBills} /></div>}
+    </div>
+    <p className="small muted allowance-explanation">Сегодняшние траты уменьшают остаток на всю сумму. Завтра план пересчитается из оставшихся денег. Полученный доход, изменение резерва или счетов также пересчитывают план.</p>
+    <p className="hint-box allowance-explanation"><Icon name="info" /><span>Оплаченные плановые платежи уже учтены в остатке и не вычитаются из плана повторно. Если записали такой платёж обычным расходом, свяжите его с запланированным событием. <button className="text-button" onClick={() => { navigate('budget'); close(); }}>Открыть платежи<Icon name="arrow" size={14} /></button></span></p>
+    <Form busy={busy} onSubmit={async data => { await run({ type: 'settings.update', settings: { horizon: value(data, 'horizon') as 'income' | 'month', reserve: parseMoney(value(data, 'reserve') || '0') } }, 'План на сегодня пересчитан'); close(); }}>
+      <Field label="Период расчёта"><select name="horizon" defaultValue={book.settings.horizon}><option value="income">До следующего дохода</option><option value="month">До конца месяца</option></select></Field>
+      <Field label="Резерв, ₸" hint="Только деньги на участвующих счетах. Накопительные счета, исключённые из расчёта, уже не учитываются."><input name="reserve" inputMode="decimal" defaultValue={moneyInput(book.settings.reserve)} /></Field>
+      {book.settings.horizon === 'income' && !a.nextIncome && <p className="hint-box"><Icon name="info" />Будущий доход не задан. Пока используем конец месяца.</p>}
+      <p className="small muted">Неполученные доходы не прибавляются к остатку. Лимиты бюджета и категорий действуют отдельно.</p>
+    </Form>
+  </>;
 }
 
 export function SettingsForm() {

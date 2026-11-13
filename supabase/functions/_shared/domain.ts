@@ -178,12 +178,32 @@ export function allowance(book: Book, date = today(book.settings.timezone)) {
   const nextIncome = upcoming.find(o => o.schedule.kind === 'income' && o.date > date);
   const dueIncome = upcoming.find(o => o.schedule.kind === 'income' && o.date <= date);
   const horizon = book.settings.horizon === 'income' && nextIncome ? addDays(nextIncome.date, -1) : end;
-  const balance = book.accounts.filter(a => a.included && !a.archived).reduce((s, a) => s + accountBalance(book, a.id, date), 0);
-  const reserved = upcoming.filter(o => o.schedule.kind !== 'income' && o.date <= horizon && book.accounts.some(a => a.id === o.schedule.accountId && a.included && !a.archived))
+  const accounts = book.accounts.filter(a => a.included && !a.archived);
+  const included = new Set(accounts.map(a => a.id));
+  const balance = accounts.reduce((s, a) => s + accountBalance(book, a.id, date), 0);
+  const reserved = upcoming.filter(o => o.schedule.kind !== 'income' && o.date <= horizon && included.has(o.schedule.accountId))
     .reduce((s, o) => s + o.schedule.amount, 0);
   const days = Math.max(1, daysBetween(date, horizon) + 1);
   const free = balance - reserved - book.settings.reserve;
-  return { balance, reserved, reserve: book.settings.reserve, days, free, daily: Math.floor(free / days / 100) * 100, horizon, nextIncome, dueIncome };
+  // Keep paid bill links even when their schedule is archived. Their payment is
+  // already reflected in the free pool and must not consume today's plan twice.
+  const paidBills = new Set(book.schedules.filter(s => s.kind !== 'income').flatMap(s => s.completed.map(c => c.transactionId)));
+  let todayExpenses = 0; let todayRefunds = 0; let todayBills = 0;
+  for (const t of book.transactions) {
+    if (t.date !== date || !included.has(t.accountId)) continue;
+    if (paidBills.has(t.id)) todayBills += t.amount;
+    else if (t.kind === 'expense') todayExpenses += t.amount;
+    else if (t.kind === 'refund') todayRefunds += t.amount;
+  }
+  const todaySpent = todayExpenses - todayRefunds;
+  // Undo today's ordinary spending before dividing so a purchase leaves the
+  // plan stable, then charge its full amount against today's allowance.
+  const dailyPlan = Math.max(0, Math.floor((free + todaySpent) / days / 100) * 100);
+  const rawRemaining = dailyPlan - todaySpent;
+  const remainingToday = Math.max(0, Math.min(free, rawRemaining));
+  const overspentToday = Math.max(0, -rawRemaining);
+  const deficit = Math.max(0, -free);
+  return { balance, reserved, reserve: book.settings.reserve, days, free, dailyPlan, todayExpenses, todayRefunds, todaySpent, todayBills, remainingToday, overspentToday, deficit, horizon, nextIncome, dueIncome };
 }
 
 const transactionInput = transactionSchema.omit({ createdAt: true });

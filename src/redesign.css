@@ -132,6 +132,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .allowance-number { font-size: clamp(2.375rem, 3.7vw, 3.125rem); line-height: 1.15; letter-spacing: -.06em; }
 .allowance-caption { font-size: .8125rem; line-height: 1.65; margin-top: .625rem; opacity: .8; }
 .allowance-bottom { font-size: .6875rem; padding-top: 1.625rem; opacity: .8; }
+.allowance-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; width: 100%; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 18%, transparent); }
+.allowance-stats>div { min-width: 0; display: flex; flex-direction: column; gap: .375rem; }
+.allowance-stats>div>span:first-child { font-size: .6875rem; line-height: 1.5; opacity: .8; }
+.allowance-stats .money { font-size: 1.0625rem; font-weight: 600; }
+.allowance-stats .money-long { font-size: .75rem; }
+.allowance-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .375rem .75rem; width: 100%; margin-top: .875rem; font-size: .75rem; line-height: 1.5; }
+.allowance-status .money { font-weight: 700; }
+.allowance-card.overspent { background: #ead3b2; color: #493821; }
 .allowance-card.deficit { background: #e6b9a9; color: #4b291c; }
 .quick-actions { grid-template-columns: 1.25fr 1fr 1fr 1.35fr; gap: .75rem; margin: 1.75rem 0 2.625rem; }
 .quick-actions button { min-height: 3.375rem; flex-direction: row; border: 0; border-radius: .875rem; padding: .875rem 1rem; background: var(--surface); font-size: .8125rem; font-weight: 600; gap: .625rem; }
@@ -287,6 +295,11 @@ input, select { min-height: 3.125rem; border-radius: .8125rem; border-color: var
 .event-detail>.money { font-size: 1.125rem; }
 .detail-amount>.money { font-size: 2.75rem; font-weight: 500; }
 .calculation>div, .calculation-total strong { font-size: .8125rem; }
+.allowance-section-title { margin: 1.5rem 0 .75rem; font-size: .9375rem; }
+.allowance-explanation { margin-bottom: 1.25rem; }
+.allowance-explanation .text-button { margin-top: .5rem; }
+.allowance-notice { display: flex; align-items: flex-start; gap: .625rem; padding: .875rem 1rem; margin-bottom: .75rem; border-radius: .875rem; background: color-mix(in srgb, var(--danger) 9%, var(--surface)); font-size: .8125rem; }
+.allowance-notice>svg { flex: none; margin-top: .1875rem; color: var(--danger); }
 .debt-card { padding: 1.25rem; border-radius: 1.125rem; }
 .debt-title { font-size: .9375rem; }
 .debt-card .money { font-size: 1.25rem; }
@@ -391,6 +404,10 @@ input, select { min-height: 3.125rem; border-radius: .8125rem; border-color: var
   .allowance-card .allowance-number.money-long { font-size: 1.75rem; }
   .allowance-card:has(.money-long) .allowance-caption { max-width: none; text-align: left; }
   .allowance-caption { display: block; font-size: .6875rem; max-width: 7.5rem; line-height: 1.6; margin: 0; text-align: right; }
+  .allowance-stats { grid-column: 1 / -1; margin-top: .5rem; padding-top: .875rem; }
+  .allowance-stats .money { font-size: 1rem; }
+  .allowance-stats .money-long { font-size: .75rem; }
+  .allowance-status { grid-column: 1 / -1; margin-top: .25rem; font-size: .6875rem; }
   .allowance-bottom { display: none; }
   .next-payment-mobile { display: flex; align-items: center; gap: .75rem; padding: 1rem .25rem; width: 100%; text-align: left; border-bottom: 1px solid var(--border); }
   .next-payment-mobile>svg { color: var(--muted); flex: none; }

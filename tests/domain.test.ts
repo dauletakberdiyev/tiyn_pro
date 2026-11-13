@@ -83,7 +83,7 @@ describe('Планы и сумма на день', () => {
   it('исключает накопления и ожидаемый доход, учитывает платежи и резерв', () => {
     let b = fixture(); b.schedules = [schedule(b), schedule(b, { id: id(), kind: 'income', amount: 99900000, categoryId: b.categories.find(c => c.type === 'income')!.id, dueDate: '2026-11-22' })];
     b.settings.reserve = 5000000; b.settings.horizon = 'income';
-    const a = allowance(b, '2026-11-12'); expect(a.balance).toBe(18000000); expect(a.days).toBe(10); expect(a.daily).toBe(700000);
+    const a = allowance(b, '2026-11-12'); expect(a.balance).toBe(18000000); expect(a.days).toBe(10); expect(a.dailyPlan).toBe(700000);
   });
   it('не резервирует платежи с исключённого накопительного счёта', () => {
     const b = fixture(); b.schedules = [schedule(b, { accountId: b.accounts[1].id })]; expect(allowance(b, '2026-11-12').reserved).toBe(0);
