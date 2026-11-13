@@ -16,6 +16,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
+it('normalizes a legacy cloud book without a goals collection', async () => {
+  const book = emptyBook(); const legacy = JSON.parse(JSON.stringify(book)); delete legacy.goals;
+  mocks.getSession.mockResolvedValue({ data: { session: { access_token: 'existing' } } });
+  mocks.invoke.mockResolvedValue({ data: { book: legacy }, error: null });
+  const { loadCloudBook } = await import('../src/cloud');
+  expect(await loadCloudBook()).toEqual(book);
+});
+
 it('uses the login book without a second finance request after installing the session', async () => {
   const book = emptyBook('Вход'); const session = { access_token: 'access', refresh_token: 'refresh' };
   mocks.getSession.mockResolvedValue({ data: { session: null } });

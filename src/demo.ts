@@ -10,6 +10,7 @@ export function demoBook(): Book {
     { id: cash, name: 'Наличные', opening: 2850000, included: true, archived: false, color: '#c9c19b' },
     { id: savings, name: 'Накопления', opening: 35000000, included: false, archived: false, color: '#a3bca0' },
   ];
+  book.goals = [{ id: id(), name: 'Финансовая подушка', targetAmount: 100000000, accountId: savings, dueDate: addDays(date, 180), archived: false }];
   const category = (name: string) => book.categories.find(c => c.name === name)!.id;
   const tx = (kind: Transaction['kind'], amount: number, name: string, date: string, note: string, accountId = main) => {
     book.transactions.push({ id: id(), kind, amount: amount * 100, categoryId: category(name), accountId, date, note, createdAt: `${date}T08:00:00.000Z` });

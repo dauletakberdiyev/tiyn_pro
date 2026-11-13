@@ -405,7 +405,7 @@ input, select { min-height: 3.125rem; border-radius: .8125rem; border-color: var
   .panel { padding: 1.25rem; border-radius: 1.25rem; }
   .transaction-panel { padding: .125rem 0 0; border-radius: 0; }
   .dashboard-columns, .column-main, .column-side { gap: 1.5rem; }
-  .column-side { display: flex; }
+  .column-side { display: flex; align-items: stretch; }
   .section-title { margin-bottom: .875rem; }
   .section-title h2 { font-size: 1rem; }
   .section-title .text-button { font-size: .75rem; gap: .25rem; }
@@ -503,4 +503,35 @@ input, select { min-height: 3.125rem; border-radius: .8125rem; border-color: var
 @keyframes sheet-enter { from { opacity: 0; transform: translateY(1.25rem); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none!important; transition: none!important; scroll-behavior: auto!important; }
+}
+
+/* Savings use the same account balances and surfaces as the rest of the budget. */
+.goal-list { display: grid; gap: 1.25rem; margin-bottom: 1.25rem; }
+.goal-card { display: block; min-width: 0; width: 100%; padding: 0; text-align: left; border-radius: .5rem; }
+.goal-card:hover .goal-heading strong { color: var(--accent-ink); }
+.goal-card + .goal-card { border-top: 1px solid var(--border); padding-top: 1.25rem; }
+.goal-summary { display: grid; gap: .875rem; min-width: 0; }
+.goal-heading { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.goal-symbol { display: grid; place-items: center; flex: none; width: 2.5rem; height: 2.5rem; border: 1px solid var(--border); border-radius: .875rem; }
+.goal-heading > span:nth-child(2) { flex: 1; min-width: 0; }
+.goal-heading strong, .goal-heading small { display: block; overflow-wrap: anywhere; }
+.goal-heading strong { font-size: .9375rem; font-weight: 600; }
+.goal-heading small { color: var(--muted); font-size: .75rem; }
+.goal-percent { color: var(--accent-ink); font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.goal-amounts { display: flex; align-items: baseline; flex-wrap: wrap; gap: .375rem .625rem; }
+.goal-amounts > .money { font-size: 1.625rem; font-weight: 600; }
+.goal-amounts > span:not(.money) { color: var(--muted); font-size: .8125rem; }
+.goal-summary .progress-track { display: block; margin: 0; }
+.goal-status { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; font-size: .8125rem; }
+.goal-timing { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .375rem 1rem; color: var(--muted); font-size: .75rem; }
+.goal-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+.goal-actions .button { flex: 1 1 10rem; }
+.goal-detail-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; padding: 1.25rem 0; border-top: 1px solid var(--border); }
+.goal-archive-row { display: flex; align-items: flex-start; gap: .875rem; text-align: left; width: 100%; padding: .875rem 0; border-bottom: 1px solid var(--border); }
+.goal-archive-row > span { display: grid; flex: 1; min-width: 0; gap: .375rem; overflow-wrap: anywhere; }
+.goal-archive-row small { color: var(--muted); }
+.goal-archive-row .goal-restore-label { color: var(--accent-ink); }
+@media (max-width: 760px) {
+  .goal-amounts > .money { font-size: 1.5rem; }
+  .goal-heading strong { font-size: .875rem; }
 }

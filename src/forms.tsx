@@ -52,20 +52,21 @@ export function AccountsList() {
   const { book, date, open } = useApp();
   return <><div className="management-list">{book.accounts.map(a => <button className="management-row" key={a.id} onClick={() => open({ type: 'account', id: a.id })}><span className="account-mark" style={{ color: a.color, backgroundColor: `${a.color}20` }}>{a.name.slice(0, 1)}</span><span><strong>{a.name}</strong><small>{a.archived ? 'В архиве' : a.id === book.settings.defaultAccountId ? 'Основной счёт' : a.included ? 'Для расходов' : 'Накопления'}</small></span><Money book={book} value={accountBalance(book, a.id, date)} /><Icon name="right" size={16} /></button>)}</div><button className="button primary" onClick={() => open({ type: 'account' })}><Icon name="plus" />Добавить счёт</button></>;
 }
-export function AccountForm({ accountId }: { accountId?: string }) {
+export function AccountForm({ accountId, returnToGoal }: { accountId?: string; returnToGoal?: Modal['returnToGoal'] }) {
   const { book, run, busy, close, open, date } = useApp();
   const account = book.accounts.find(a => a.id === accountId); const [newId] = useState(id());
+  const linkedGoal = book.goals.find(g => !g.archived && g.accountId === accountId);
   return <Form busy={busy} onSubmit={async data => {
     const next: Account = { id: account?.id ?? newId, name: value(data, 'name'), opening: account?.opening ?? parseMoney(value(data, 'opening')), color: value(data, 'color') || '#b8d18b', included: data.has('included'), archived: data.has('archived') };
     await run({ type: 'account.save', account: next, makeDefault: data.has('default') && !next.archived });
-    close();
+    if (returnToGoal) open({ type: 'goal', id: returnToGoal.id }); else close();
   }}>
     <Field label="Название"><input name="name" defaultValue={account?.name ?? ''} placeholder="Например, Kaspi Gold" maxLength={120} required autoFocus /></Field>
     {account ? <div className="account-balance-info"><span>Текущий остаток</span><Money value={accountBalance(book, account.id, date)} book={book} /><button type="button" className="text-button" onClick={() => open({ type: 'correct', id: account.id })}>Скорректировать остаток<Icon name="right" size={14} /></button></div> : <Field label="Начальный остаток, ₸" hint="Это деньги на счёте сейчас, а не доход месяца"><input name="opening" inputMode="decimal" defaultValue="0" required /></Field>}
     <ColorPicker initial={account?.color ?? '#b8d18b'} />
-    <label className="checkbox-row"><input type="checkbox" name="included" defaultChecked={account?.included ?? true} /><span>Учитывать в доступных деньгах на день<small>Отключите для накоплений, которые не планируете тратить</small></span></label>
+    <label className="checkbox-row"><input type="checkbox" name="included" defaultChecked={account?.included ?? true} disabled={!!linkedGoal} /><span>Учитывать в доступных деньгах на день<small>{linkedGoal ? 'Недоступно, пока счёт связан с активной целью' : 'Отключите для накоплений, которые не планируете тратить'}</small></span></label>
     <label className="checkbox-row"><input type="checkbox" name="default" defaultChecked={account?.id === book.settings.defaultAccountId} /><span>Основной счёт для новых операций</span></label>
-    {account && <Archive checked={account.archived} />}
+    {linkedGoal ? <p className="hint-box"><Icon name="target" /><span>Счёт связан с целью «{linkedGoal.name}». Для архивирования счёта сначала перенесите или архивируйте цель. <button type="button" className="text-button" onClick={() => open({ type: 'goal', id: linkedGoal.id })}>Открыть цель</button></span></p> : account && <Archive checked={account.archived} />}
   </Form>;
 }
 export function CorrectForm({ accountId }: { accountId: string }) {

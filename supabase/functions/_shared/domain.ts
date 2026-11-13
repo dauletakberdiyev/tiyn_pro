@@ -34,6 +34,10 @@ export const debtSchema = z.object({
   id: uuid, name: label, direction: z.enum(['owe', 'owed']), opening: money,
   dueDate: z.union([dateSchema, z.literal('')]), note: z.string().max(500), archived: z.boolean(),
 });
+export const savingsGoalSchema = z.object({
+  id: uuid, name: label, targetAmount: positive, accountId: uuid,
+  dueDate: z.union([dateSchema, z.literal('')]), archived: z.boolean(),
+});
 export const budgetSchema = z.object({
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), amount: money,
   limits: z.array(z.object({ categoryId: uuid, amount: positive })).max(200),
@@ -52,12 +56,14 @@ export const bookSchema = z.object({
   accounts: z.array(accountSchema).max(100), categories: z.array(categorySchema).max(200),
   transactions: z.array(transactionSchema).max(20000), schedules: z.array(scheduleSchema).max(300),
   debts: z.array(debtSchema).max(500), budgets: z.array(budgetSchema).max(240),
+  goals: z.array(savingsGoalSchema).max(300).default([]),
 });
 export type Account = z.infer<typeof accountSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type Transaction = z.infer<typeof transactionSchema>;
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type Debt = z.infer<typeof debtSchema>;
+export type SavingsGoal = z.infer<typeof savingsGoalSchema>;
 export type Budget = z.infer<typeof budgetSchema>;
 export type Book = z.infer<typeof bookSchema>;
 export type Settings = Book['settings'];
@@ -108,7 +114,7 @@ export function emptyBook(name = 'Мой бюджет'): Book {
   return {
     schemaVersion: 1, onboarded: false,
     settings: { name, defaultAccountId: '', reserve: 0, horizon: 'month', theme: 'dark', hideAmounts: false, haptics: true, timezone: 'Asia/Almaty', reminders: false, limitAlerts: true, weeklyReport: false, reminderTime: '09:00' },
-    accounts: [], transactions: [], schedules: [], debts: [], budgets: [],
+    accounts: [], transactions: [], schedules: [], debts: [], budgets: [], goals: [],
     categories: [
       ...expenseDefinitions.map(([name, icon, color]) => ({ id: id(), name, icon, color, type: 'expense' as const, archived: false })),
       ...['Зарплата', 'Подработка', 'Подарки', 'Прочие доходы'].map((name, i) => ({ id: id(), name, icon: ['wallet', 'briefcase', 'gift', 'dots'][i], color: '#b8d18b', type: 'income' as const, archived: false })),
@@ -126,6 +132,20 @@ export function accountBalance(book: Book, accountId: string, at = '9999-12-31')
 }
 export function debtBalance(book: Book, debtId: string): number {
   return (book.debts.find(d => d.id === debtId)?.opening ?? 0) + book.transactions.filter(t => t.debtId === debtId).reduce((s, t) => s + (t.debtChange ?? 0), 0);
+}
+export function savingsGoalProgress(book: Book, goal: SavingsGoal, date = today(book.settings.timezone)) {
+  const balance = accountBalance(book, goal.accountId, date);
+  const remaining = Math.max(0, goal.targetAmount - balance);
+  const reached = remaining === 0;
+  const overdue = !!goal.dueDate && goal.dueDate < date && !reached;
+  const months = goal.dueDate && !overdue
+    ? (Number(goal.dueDate.slice(0, 4)) - Number(date.slice(0, 4))) * 12 + Number(goal.dueDate.slice(5, 7)) - Number(date.slice(5, 7)) + 1
+    : 0;
+  return {
+    balance, remaining, reached, overdue,
+    percent: Math.max(0, Math.min(100, Math.floor(balance / goal.targetAmount * 100))),
+    monthly: months > 0 && !reached ? Math.ceil(remaining / months / 100) * 100 : null,
+  };
 }
 export function expenseTotal(book: Book, from: string, to: string, categoryId?: string): number {
   return book.transactions.filter(t => t.date >= from && t.date <= to && (!categoryId || t.categoryId === categoryId))
@@ -172,6 +192,7 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('account.save'), account: accountSchema, makeDefault: z.boolean().optional() }),
   z.object({ type: z.literal('account.correct'), accountId: uuid, balance: money, date: dateSchema, note: z.string().max(500) }),
   z.object({ type: z.literal('category.save'), category: categorySchema }),
+  z.object({ type: z.literal('goal.save'), goal: savingsGoalSchema }),
   z.object({ type: z.literal('transaction.save'), transaction: transactionInput }),
   z.object({ type: z.literal('transaction.delete'), id: uuid }),
   z.object({ type: z.literal('transaction.restore'), transaction: transactionSchema, completions: z.array(z.object({ scheduleId: uuid, date: dateSchema })) }),
@@ -213,10 +234,19 @@ function checkTransaction(book: Book, t: Transaction, date: string) {
 
 export function validateBook(input: unknown): Book {
   const book = bookSchema.parse(input);
-  for (const collection of [book.accounts, book.categories, book.transactions, book.schedules, book.debts]) {
+  for (const collection of [book.accounts, book.categories, book.transactions, book.schedules, book.debts, book.goals]) {
     ensure(new Set(collection.map(i => i.id)).size === collection.length, 'Повторяющийся идентификатор');
   }
   for (const debt of book.debts) ensure(debtBalance(book, debt.id) >= 0, 'Сумма возврата больше остатка долга');
+  const goalAccounts = new Set<string>();
+  for (const goal of book.goals) {
+    ensure(book.accounts.some(a => a.id === goal.accountId), 'Счёт цели не найден');
+    if (goal.archived) continue;
+    const account = activeAccount(book, goal.accountId);
+    ensure(!goalAccounts.has(account.id), 'На этом счёте уже есть активная цель');
+    ensure(!account.included, 'Счёт активной цели не может участвовать в сумме на день');
+    goalAccounts.add(account.id);
+  }
   if (book.settings.defaultAccountId) ensure(book.accounts.some(a => a.id === book.settings.defaultAccountId && !a.archived), 'Основной счёт недоступен');
   return book;
 }
@@ -234,6 +264,10 @@ export function applyCommand(input: Book, raw: unknown, now = new Date()): Book 
       book.accounts.push(account); book.settings.name = command.name; book.settings.defaultAccountId = account.id; book.onboarded = true; break;
     }
     case 'account.save': {
+      if (book.goals.some(g => !g.archived && g.accountId === command.account.id)) {
+        ensure(!command.account.archived, 'Сначала перенесите или архивируйте цель этого счёта');
+        ensure(!command.account.included, 'Счёт активной цели не может участвовать в сумме на день');
+      }
       const previous = book.accounts.find(a => a.id === command.account.id);
       if (previous) {
         ensure(previous.opening === command.account.opening, 'Для изменения остатка используйте корректировку');
@@ -258,6 +292,16 @@ export function applyCommand(input: Book, raw: unknown, now = new Date()): Book 
       if (previous) ensure(previous.type === command.category.type, 'Тип существующей категории менять нельзя');
       if (command.category.archived) ensure(!book.schedules.some(s => !s.archived && s.categoryId === command.category.id), 'Сначала перенесите или архивируйте планы этой категории');
       book.categories = upsert(book.categories, command.category); break;
+    }
+    case 'goal.save': {
+      const goal = command.goal;
+      ensure(book.accounts.some(a => a.id === goal.accountId), 'Счёт цели не найден');
+      if (!goal.archived) {
+        const account = activeAccount(book, goal.accountId);
+        ensure(!book.goals.some(g => !g.archived && g.id !== goal.id && g.accountId === goal.accountId), 'На этом счёте уже есть активная цель');
+        account.included = false;
+      }
+      book.goals = upsert(book.goals, goal); break;
     }
     case 'transaction.save': {
       const previous = book.transactions.find(t => t.id === command.transaction.id);

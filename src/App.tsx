@@ -4,6 +4,7 @@ import { useBook, isDemo } from './store';
 import { initializeTelegram, telegram } from './telegram';
 import { Icon, IconButton, Sheet } from './components';
 import { HomePage, OperationsPage, BudgetPage, AnalyticsPage } from './pages';
+import { GoalForm, GoalsList } from './goals';
 import { AccountForm, AccountsList, AllowanceForm, BotForm, BudgetForm, CategoryForm, CategoryList, CompleteForm, CorrectForm, DebtForm, DebtsList, DemoResetForm, ExportForm, OnboardForm, RepayForm, ResetForm, ScheduleForm, SettingsForm, TransactionForm } from './forms';
 import { monthOf, today, type Command, type Transaction } from '../supabase/functions/_shared/domain.ts';
 
@@ -13,6 +14,7 @@ const navigation: { page: Page; title: string; icon: string }[] = [
 ];
 const titles: Record<Modal['type'], string> = {
   transaction: 'Операция', accounts: 'Мои счета', account: 'Счёт', correct: 'Корректировка остатка',
+  goals: 'Цели накоплений', goal: 'Цель накоплений',
   settings: 'Настройки', budget: 'Настроить бюджет', category: 'Категория', categories: 'Категории',
   schedule: 'Запланированное событие', complete: 'Подтвердить событие', debts: 'Долги', debt: 'Карточка долга', repay: 'Возврат долга',
   allowance: 'Ваш ориентир на день', onboard: 'Начнём с вашего счёта', reset: 'Удалить данные', demoReset: 'Загрузить пример', bot: 'Быстрый ввод', export: 'Экспорт операций',
@@ -98,7 +100,9 @@ function ModalContent({ modal }: { modal: Modal }) {
   switch (modal.type) {
     case 'transaction': return <TransactionForm modal={modal} />;
     case 'accounts': return <AccountsList />;
-    case 'account': return <AccountForm accountId={modal.id} />;
+    case 'account': return <AccountForm accountId={modal.id} returnToGoal={modal.returnToGoal} />;
+    case 'goals': return <GoalsList />;
+    case 'goal': return <GoalForm goalId={modal.id} />;
     case 'correct': return <CorrectForm accountId={modal.id!} />;
     case 'settings': return <SettingsForm />;
     case 'budget': return <BudgetForm />;

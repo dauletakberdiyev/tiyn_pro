@@ -3,10 +3,11 @@ import type { Book, Command, Occurrence, Transaction } from '../supabase/functio
 export type Page = 'home' | 'operations' | 'budget' | 'analytics';
 export interface Filters { from: string; to: string; kind: string; categoryId: string; accountId: string; search: string }
 export interface Modal {
-  type: 'transaction' | 'accounts' | 'account' | 'correct' | 'settings' | 'budget' | 'category' | 'categories' | 'schedule' | 'complete' | 'debts' | 'debt' | 'repay' | 'allowance' | 'onboard' | 'reset' | 'demoReset' | 'bot' | 'export';
+  type: 'transaction' | 'accounts' | 'account' | 'correct' | 'settings' | 'budget' | 'category' | 'categories' | 'schedule' | 'complete' | 'debts' | 'debt' | 'repay' | 'allowance' | 'onboard' | 'reset' | 'demoReset' | 'bot' | 'export' | 'goals' | 'goal';
   id?: string;
   draft?: Omit<Transaction, 'createdAt'>;
   occurrence?: Occurrence;
+  returnToGoal?: { id?: string };
 }
 interface Context {
   book: Book; busy: boolean; date: string; page: Page; month: string; setMonth: (month: string) => void;

@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { applyCommand, emptyBook, id, type Book } from '../supabase/functions/_shared/domain.ts';
+import { applyCommand, emptyBook, id, savingsGoalProgress, today, type Book, type SavingsGoal } from '../supabase/functions/_shared/domain.ts';
 
 declare global {
   var Deno: { env: { get(key: string): string | undefined }; serve(handler: (request: Request) => Promise<Response>): void };
@@ -84,6 +84,49 @@ it('saves with one Auth call, preparation and commit, preserving another user’
   expect(edge.getUser).toHaveBeenCalledTimes(1);
   expect(edge.rpc.mock.calls.map(call => call[0])).toEqual(['prepare_finance_request', 'commit_finance_book']);
   expect((await readBook()).revision).toBe(1); expect(await readBook(userB)).toEqual(other);
+});
+it('loads an old cloud book and atomically saves a goal once across duplicate requests', async () => {
+  const legacy = JSON.parse(JSON.stringify(initial)); delete legacy.goals;
+  await db.query('update public.finance_books set state=$2 where user_id=$1', [userA, JSON.stringify(legacy)]);
+  const loaded = await handler(request({ action: 'load' }));
+  expect((await loaded.json()).book.goals).toEqual([]);
+  const goal: SavingsGoal = { id: id(), name: 'Подушка', targetAmount: 500000, accountId: initial.accounts[0].id, dueDate: '', archived: false };
+  const payload = { action: 'command', requestId: id(), command: { type: 'goal.save', goal } };
+  expect((await handler(request(payload))).status).toBe(200);
+  const saved = await readBook();
+  expect(saved.state.goals).toEqual([goal]); expect(saved.state.accounts[0].included).toBe(false);
+  expect(saved.state.transactions).toEqual(initial.transactions);
+  expect((await handler(request(payload))).status).toBe(200);
+  expect(await readBook()).toEqual(saved);
+  expect((await readBook(userB)).state).toEqual(initial);
+  const { applyToUser } = await import('../supabase/functions/_shared/server.ts');
+  const next = await applyToUser(userA, id(), { type: 'transaction.save', transaction: { id: id(), kind: 'income', accountId: goal.accountId, categoryId: initial.categories.find(c => c.type === 'income')!.id, amount: 10000, date: today(), note: 'Проценты через бота' } });
+  expect(next.goals).toEqual([goal]);
+  expect(savingsGoalProgress(next, goal).balance).toBe(110000);
+  expect((await handler(request({ action: 'command', requestId: id(), command: { type: 'settings.update', settings: { theme: 'light' } } }))).status).toBe(200);
+  expect((await readBook()).state.goals).toEqual([goal]);
+});
+it('revalidates a goal against a concurrent claim on the same account', async () => {
+  const { prepareFinanceRequest, applyToUser } = await import('../supabase/functions/_shared/server.ts');
+  const goal: SavingsGoal = { id: id(), name: 'Подушка', targetAmount: 500000, accountId: initial.accounts[0].id, dueDate: '', archived: false };
+  const requestId = id(); const prepared = await prepareFinanceRequest(userA, requestId);
+  const concurrent = applyCommand(initial, { type: 'goal.save', goal: { ...goal, id: id(), name: 'Отпуск' } });
+  await db.query("select public.commit_finance_book($1,0,$2,'goal.save',$3)", [userA, id(), JSON.stringify(concurrent)]);
+  await expect(applyToUser(userA, requestId, { type: 'goal.save', goal }, prepared)).rejects.toThrow('На этом счёте уже есть активная цель');
+  expect((await readBook()).state).toEqual(concurrent);
+  expect((await readBook()).revision).toBe(1);
+});
+it('preserves a concurrent income when retrying goal creation after a revision conflict', async () => {
+  const { prepareFinanceRequest, applyToUser } = await import('../supabase/functions/_shared/server.ts');
+  const goal: SavingsGoal = { id: id(), name: 'Подушка', targetAmount: 500000, accountId: initial.accounts[0].id, dueDate: '', archived: false };
+  const requestId = id(); const prepared = await prepareFinanceRequest(userA, requestId);
+  const concurrent = applyCommand(initial, { type: 'transaction.save', transaction: { id: id(), kind: 'income', accountId: goal.accountId, categoryId: initial.categories.find(c => c.type === 'income')!.id, amount: 10000, date: today(), note: 'Проценты' } });
+  await db.query("select public.commit_finance_book($1,0,$2,'transaction.save',$3)", [userA, id(), JSON.stringify(concurrent)]);
+  const next = await applyToUser(userA, requestId, { type: 'goal.save', goal }, prepared);
+  expect(next.transactions).toEqual(concurrent.transactions);
+  expect(savingsGoalProgress(next, goal).balance).toBe(110000);
+  expect(next.accounts[0].included).toBe(false);
+  expect((await readBook()).revision).toBe(2);
 });
 it('returns a completed schedule on retry before reapplying the now-invalid completion', async () => {
   const scheduleId = id();
